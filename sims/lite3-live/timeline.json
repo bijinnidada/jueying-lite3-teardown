@@ -1,0 +1,16 @@
+{
+  "duration": 54,
+  "beats": [
+    {"at": 0, "name": "hero", "cn": "整机"},
+    {"at": 4.5, "name": "head", "cn": "感知头部"},
+    {"at": 9.5, "name": "lidar", "cn": "激光雷达"},
+    {"at": 14, "name": "payload", "cn": "计算平台"},
+    {"at": 18, "name": "walk", "cn": "行走"},
+    {"at": 24, "name": "trot", "cn": "小跑"},
+    {"at": 29.5, "name": "leg", "cn": "腿部拆解"},
+    {"at": 35, "name": "xray", "cn": "透视内部"},
+    {"at": 39.5, "name": "bound", "cn": "奔跑"},
+    {"at": 44.5, "name": "prone", "cn": "趴下"},
+    {"at": 48.5, "name": "recover", "cn": "恢复"}
+  ]
+}
