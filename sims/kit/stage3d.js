@@ -3,6 +3,11 @@ import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {ShaderPass} from 'three/addons/postprocessing/ShaderPass.js';
+
+// Objects that should bloom enable this layer in addition to layer 0.
+export const GLOW_LAYER = 1;
+const BLACK = new THREE.Color(0x000000);
 
 /**
  * Renderer + scene + camera + bloom. The camera's projection centre is shifted
@@ -16,6 +21,7 @@ export function createStage(canvas, hud, opts = {}) {
     bloom = {strength: 0.85, radius: 0.55, threshold: 0.62},
     capture = false,
     exposure = 1,
+    glow = null,
   } = opts;
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -36,7 +42,25 @@ export function createStage(canvas, hud, opts = {}) {
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(4, 4), bloom.strength, bloom.radius, bloom.threshold);
-  composer.addPass(bloomPass);
+  // Selective emissive bloom: a second composer renders only GLOW_LAYER against
+  // black, blooms it, and adds it over the base before tone mapping. A full-scene
+  // bloom would pick up a pale studio background and veil the whole frame.
+  let bloomComposer = null, mixPass = null, glowOn = false;
+  if (glow) {
+    bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, {type: THREE.HalfFloatType}));
+    bloomComposer.renderToScreen = false;
+    bloomComposer.addPass(new RenderPass(scene, camera));
+    bloomComposer.addPass(new UnrealBloomPass(new THREE.Vector2(4, 4), glow.strength, glow.radius, glow.threshold));
+    mixPass = new ShaderPass(new THREE.ShaderMaterial({
+      uniforms: {baseTexture: {value: null}, bloomTexture: {value: bloomComposer.renderTarget2.texture}},
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv; void main(){ gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv); }',
+    }), 'baseTexture');
+    mixPass.needsSwap = true;
+    composer.addPass(mixPass);
+  } else {
+    composer.addPass(bloomPass);
+  }
   composer.addPass(new OutputPass());
 
   const size = {w: 1, h: 1, centre: 0.5};
@@ -68,6 +92,7 @@ export function createStage(canvas, hud, opts = {}) {
     renderer.setSize(w, h, false);
     composer.setPixelRatio(pr);
     composer.setSize(w, h);
+    if (bloomComposer) { bloomComposer.setPixelRatio(pr); bloomComposer.setSize(w, h); }
     const vp = hud.viewport();
     size.centre = (vp.top + (h - vp.bottom)) / 2;
     camera.aspect = w / h;
@@ -99,7 +124,20 @@ export function createStage(canvas, hud, opts = {}) {
     size,
     resize,
     project,
-    render: () => composer.render(),
+    render: () => {
+      if (glowOn && bloomComposer) {
+        const mask = camera.layers.mask, hadBg = scene.background, hadFog = scene.fog;
+        camera.layers.set(GLOW_LAYER);
+        scene.background = BLACK;
+        scene.fog = null;
+        bloomComposer.render();
+        camera.layers.mask = mask;
+        scene.background = hadBg;
+        scene.fog = hadFog;
+      }
+      composer.render();
+    },
+    setGlow: (on) => { glowOn = !!on && !!bloomComposer; if (mixPass) mixPass.enabled = glowOn; },
     setCrop,
     hudViewport: () => hud.viewport(),
   };

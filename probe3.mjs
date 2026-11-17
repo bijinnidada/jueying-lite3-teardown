@@ -22,7 +22,7 @@ const browser = await chromium.launch({args: ['--ignore-gpu-blocklist', '--enabl
     window.SIM.render(45);
     const g = [...document.querySelectorAll('[data-g]')].map((b) => b.dataset.g + (b.classList.contains('on') ? '*' : ''));
     const m = [...document.querySelectorAll('[data-m]')].map((b) => b.dataset.m + (b.classList.contains('on') ? '*' : ''));
-    return {g, m, chips: [...document.querySelectorAll('.chip')].map((c) => c.textContent.trim())};
+    return {g, m, chips: [...document.querySelectorAll('.chip')].map((c) => c.textContent.trim()), ex: document.getElementById('s-explode').value, exLbl: document.getElementById('b-explode').textContent};
   });
   console.log('T45 SYNC', JSON.stringify(dump));
   await page.close();
@@ -75,6 +75,33 @@ const browser = await chromium.launch({args: ['--ignore-gpu-blocklist', '--enabl
   }
   console.log('SLIDERS', JSON.stringify(await page.evaluate(() => window.__LITE.state().P)));
 
+  // explode / reassemble: button tween, slider direct, E key, pause safety
+  await page.click('[data-c="hero"]');
+  await page.waitForTimeout(1100);
+  await page.click('#b-explode');
+  await page.waitForFunction(() => window.__LITE.state().explode > 0.99, null, {timeout: 20000});
+  const exOn = await page.evaluate(() => ({ex: +window.__LITE.state().explode.toFixed(2), lbl: document.getElementById('b-explode').textContent, chip: !document.getElementById('c-explode').hidden}));
+  await page.screenshot({path: path.join(out, 'qa-explode.png')});
+  await page.click('#b-explode');
+  await page.waitForFunction(() => window.__LITE.state().explode < 0.01, null, {timeout: 20000});
+  const exOff = await page.evaluate(() => ({ex: +window.__LITE.state().explode.toFixed(2), lbl: document.getElementById('b-explode').textContent, chip: !document.getElementById('c-explode').hidden}));
+  await page.evaluate(() => { const s = document.getElementById('s-explode'); s.value = '50'; s.dispatchEvent(new Event('input', {bubbles: true})); });
+  await page.waitForTimeout(250);
+  const exHalf = await page.evaluate(() => +window.__LITE.state().explode.toFixed(2));
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__LITE.state().explode > 0.99, null, {timeout: 20000});
+  const exKey1 = await page.evaluate(() => +window.__LITE.state().explode.toFixed(2));
+  await page.keyboard.press('e');
+  await page.waitForTimeout(400);
+  await page.keyboard.press('Space');
+  const pa = await page.evaluate(() => window.__LITE.state().explode);
+  await page.waitForTimeout(500);
+  const pb = await page.evaluate(() => window.__LITE.state().explode);
+  await page.keyboard.press('Space');
+  await page.waitForFunction(() => window.__LITE.state().explode < 0.01, null, {timeout: 20000});
+  const pc = await page.evaluate(() => +window.__LITE.state().explode.toFixed(2));
+  console.log('EXPLODE', JSON.stringify({on: exOn, off: exOff, half: exHalf, keyToFull: exKey1, pauseFrozen: pa === pb, resumedTo: pc}));
+
   // display toggles
   for (const m of ['cut', 'xray', 'wire', 'trails', 'labels', 'grid']) {
     await page.click(`[data-m="${m}"]`);
@@ -106,7 +133,7 @@ const browser = await chromium.launch({args: ['--ignore-gpu-blocklist', '--enabl
   await page.click('#b-reset');
   await page.waitForTimeout(250);
   console.log('AFTER RESET', JSON.stringify(await state()));
-  const dl = page.waitForEvent('download', {timeout: 5000}).catch(() => null);
+  const dl = page.waitForEvent('download', {timeout: 20000}).catch(() => null);
   await page.click('#b-shot');
   const d = await dl;
   console.log('SHOT download=', d ? d.suggestedFilename() : 'none');

@@ -1,5 +1,5 @@
 {
-  "duration": 54,
+  "duration": 66,
   "beats": [
     {"at": 0, "name": "hero", "cn": "整机"},
     {"at": 4.5, "name": "head", "cn": "感知头部"},
@@ -9,8 +9,11 @@
     {"at": 24, "name": "trot", "cn": "小跑"},
     {"at": 29.5, "name": "leg", "cn": "腿部拆解"},
     {"at": 35, "name": "xray", "cn": "透视内部"},
-    {"at": 39.5, "name": "bound", "cn": "奔跑"},
-    {"at": 44.5, "name": "prone", "cn": "趴下"},
-    {"at": 48.5, "name": "recover", "cn": "恢复"}
+    {"at": 39.5, "name": "explode", "cn": "结构拆解"},
+    {"at": 45, "name": "battery", "cn": "电池舱打开"},
+    {"at": 48, "name": "reassemble", "cn": "结构重合"},
+    {"at": 52, "name": "bound", "cn": "奔跑"},
+    {"at": 57, "name": "prone", "cn": "趴下"},
+    {"at": 61, "name": "recover", "cn": "恢复"}
   ]
 }

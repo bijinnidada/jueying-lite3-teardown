@@ -24,8 +24,8 @@ const font = (weight) => {
   return `@font-face{font-family:'JetBrains Mono';font-weight:${weight};font-style:normal;font-display:block;src:url(data:font/woff2;base64,${b64}) format('woff2');}`;
 };
 const inter = fs.readFileSync(path.join(ROOT, 'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2')).toString('base64');
-const FONTS = [400, 600, 700].map(font).join('\n') +
-  `\n@font-face{font-family:'Inter';font-weight:100 900;font-style:normal;font-display:block;src:url(data:font/woff2;base64,${inter}) format('woff2');}`;
+const MONO_FONTS = [400, 700].map(font).join('\n');
+const INTER_FONT = `\n@font-face{font-family:'Inter';font-weight:100 900;font-style:normal;font-display:block;src:url(data:font/woff2;base64,${inter}) format('woff2');}`;
 const KIT_CSS = fs.readFileSync(path.join(HERE, 'kit/style.css'), 'utf8');
 
 const names = process.argv.slice(2).length
@@ -37,11 +37,17 @@ const names = process.argv.slice(2).length
 for (const name of names) {
   const dir = path.join(HERE, name);
   const t0 = Date.now();
+  // per-sim build.json: {"fonts":"mono"} drops the Inter variable font (~64 KB)
+  let opts = {};
+  const bj = path.join(dir, 'build.json');
+  if (fs.existsSync(bj)) opts = JSON.parse(fs.readFileSync(bj, 'utf8'));
+  const FONTS = opts.fonts === 'mono' ? MONO_FONTS : MONO_FONTS + INTER_FONT;
   const res = await esbuild.build({
     entryPoints: [path.join(dir, 'main.js')],
     bundle: true,
     format: 'esm',
     minify: true,
+    charset: 'utf8',
     write: false,
     target: 'es2022',
     legalComments: 'none',
